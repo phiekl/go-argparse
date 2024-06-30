@@ -145,7 +145,7 @@ func TestStringPosVarFail(t *testing.T) {
 	p.StringPosVar(&b, "b", "usage-b")
 	args := []string{"x"}
 	err := p.ParseArgs(args)
-	testError(t, err, "unexpected number of positional arguments")
+	testError(t, err, "insufficient number of positional arguments, see --help")
 }
 
 func TestStringPosVarOK(t *testing.T) {
@@ -173,7 +173,7 @@ func TestStringPosNVarFailTooFew(t *testing.T) {
 	p.StringPosNVar(&a, "a", "usage-a", 1, -1)
 	args := []string{}
 	err := p.ParseArgs(args)
-	testError(t, err, "unexpected number of positional arguments")
+	testError(t, err, "no \"a\" positional argument(s) provided, see --help")
 }
 
 func TestStringPosNVarFailTooMany(t *testing.T) {
@@ -183,7 +183,7 @@ func TestStringPosNVarFailTooMany(t *testing.T) {
 	p.StringPosNVar(&a, "a", "usage-a", 1, 3)
 	args := []string{"a", "b", "c", "d"}
 	err := p.ParseArgs(args)
-	testError(t, err, "unexpected number of positional arguments")
+	testError(t, err, "got 4 \"a\" positional argument(s), expected 3 at most, see --help")
 }
 
 func TestStringPosNVarOKInfiniteNoneProvided(t *testing.T) {
