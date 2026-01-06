@@ -418,7 +418,7 @@ func (p *ArgParser) parseNargs() error {
 	}
 
 	if len(nargs) > 0 {
-		panic("unexpected number of positional arguments")
+		return fmt.Errorf("unexpected number of positional arguments")
 	}
 
 	return nil
