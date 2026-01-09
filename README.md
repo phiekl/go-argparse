@@ -6,11 +6,12 @@ SPDX-License-Identifier: MIT
 
 # argparse
 
-This package is an extension of [spf13/pflag's
-FlagSet](https://pkg.go.dev/github.com/spf13/pflag#FlagSet), supporting
-positional arguments, and defining various requirements for arguments such as
-required arguments and regular expressions of argument values.
+This package is an extension of [spf13/pflag](https://pkg.go.dev/github.com/spf13/pflag#FlagSet) with common CLI parsing features:
 
+- Required flags/arguments.
+- Mutually exclusive flags.
+- Allowed string choices and regex validation.
+- Positional arguments.
 
 ## Example
 

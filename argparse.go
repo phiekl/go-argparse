@@ -2,8 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-// argparse is an extension of spf13/pflag's FlagSet, supporting positional
-// arguments and defining required arguments, argument value regex checks etc.
+// Package argparse extends spf13/pflag with common CLI parsing features:
+//
+//   - Required flags/arguments.
+//   - Mutually exclusive flags.
+//   - Allowed string choices and regex validation.
+//   - Positional arguments.
 package argparse
 
 import (
@@ -16,12 +20,19 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// ArgParser embeds pflag.FlagSet and extends it. Initialize it using
-// argparse.NewParser() and then use ParseArgs() instead of Parse().
+// ArgParser embeds pflag.FlagSet and adds post-parse validation and positional
+// argument support.
+//
+// Create with NewArgParser. Call ParseArgs or ParseCurrentArgs (not FlagSet.Parse)
+// to apply validations.
 type ArgParser struct {
 	pflag.FlagSet
-	Error              error
-	Name               string
+
+	// Error stores the last parse error returned by Parse/ParseArgs.
+	Error error
+	// Name is the program name used in help and error messages.
+	Name string
+
 	allowedRegexps     []allowedRegexp
 	allowedOptions     []allowedOption
 	pos                []pos
@@ -74,7 +85,7 @@ type posN struct {
 	maxN   int
 }
 
-// Initializes ArgParser and adds the -h/--help argument.
+// NewArgParser creates a new parser and registers -h/--help.
 func NewArgParser(name string) *ArgParser {
 	p := ArgParser{
 		Name: name,
@@ -89,8 +100,8 @@ func NewArgParser(name string) *ArgParser {
 	return &p
 }
 
-// MutuallyExlusive defines the given arguments as mutually exlusive, i.e. only
-// one of the arguments are allowed simultaneously. Enforced with ParseArgs().
+// MutuallyExclusive declares that at most one of the named flags may be set.
+// The constraint is enforced by ParseArgs.
 func (p *ArgParser) MutuallyExclusive(names ...string) {
 	for _, name := range names {
 		if flag := p.Lookup(name); flag == nil {
@@ -103,7 +114,7 @@ func (p *ArgParser) MutuallyExclusive(names ...string) {
 	p.mutuallyExclusives = append(p.mutuallyExclusives, names)
 }
 
-// ParseCurrentArgs calls ParseArgs() with the current program arguments.
+// ParseCurrentArgs calls ParseArgs with os.Args[1:].
 func (p *ArgParser) ParseCurrentArgs() error {
 	return p.ParseArgs(os.Args[1:])
 }
@@ -133,7 +144,8 @@ func (p *ArgParser) ParseArgs(args []string) error {
 	return nil
 }
 
-// Required sets the given argument as required. Enforced with ParseArgs().
+// Required marks a flag as required.
+// The constraint is enforced by ParseArgs.
 func (p *ArgParser) Required(name string) {
 	if flag := p.Lookup(name); flag == nil {
 		p.die("required: undefined flag: %s", name)
@@ -144,8 +156,8 @@ func (p *ArgParser) Required(name string) {
 	p.required = append(p.required, name)
 }
 
-// StringAllowOptions defines that the given argument's value is one of the
-// given option values. Enforced with ParseArgs().
+// StringAllowOptions restricts a string flag or positional argument to one of
+// the provided options. Enforced by ParseArgs.
 func (p *ArgParser) StringAllowOptions(target *string, name string, options []string) {
 	if name == "" {
 		p.die("allow options: cannot be defined with empty name")
@@ -175,8 +187,8 @@ func (p *ArgParser) StringAllowOptions(target *string, name string, options []st
 	p.allowedOptions = append(p.allowedOptions, allowedOption{name, target, options})
 }
 
-// StringAllowRegexp defines that the given argument's value matches the given
-// the given regular expression. Enforced with ParseArgs().
+// StringAllowRegexp restricts a string flag or positional argument to values
+// matching re. Enforced by ParseArgs.
 func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
 	if name == "" {
 		p.die("allow regexp: cannot be defined with empty name")
@@ -249,8 +261,8 @@ func (p *ArgParser) StringPosNVar(target *[]string, name, usage string, minN, ma
 	p.posN = &posN{target, name, usage, minN, maxN}
 }
 
-// StringPosVar defines a required string positional argument. It can be given
-// multiple times to add multiple required string positional arguments.
+// StringPosVar defines a required single string positional argument.
+// Call multiple times to define multiple fixed positional arguments.
 func (p *ArgParser) StringPosVar(target *string, name, usage string) {
 	prefix := fmt.Sprintf("%s: positional argument", p.Name)
 
