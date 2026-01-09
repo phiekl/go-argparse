@@ -103,14 +103,26 @@ func NewArgParser(name string) *ArgParser {
 // MutuallyExclusive declares that at most one of the named flags may be set.
 // The constraint is enforced by ParseArgs.
 func (p *ArgParser) MutuallyExclusive(names ...string) {
+	prefix := fmt.Sprintf("MutuallyExclusive(%q): cannot be defined", names)
+
+	if len(names) < 2 {
+		panic(fmt.Sprintf("%s with less than two names", prefix))
+	}
+
+	if dupes := sliceDuplicates(names); len(dupes) > 0 {
+		panic(fmt.Sprintf("%s with duplicate values", prefix))
+	}
+
 	for _, name := range names {
 		if flag := p.Lookup(name); flag == nil {
-			p.die("mutually exclusive: undefined flag: %s", name)
+			panic(fmt.Sprintf("%s for undefined flag %q", prefix, name))
 		}
 	}
+
 	if p.Parsed() {
-		p.die("mutually exclusive: %v: cannot define post-parse", names)
+		panic(fmt.Sprintf("%s post-parse", prefix))
 	}
+
 	p.mutuallyExclusives = append(p.mutuallyExclusives, names)
 }
 
@@ -147,20 +159,30 @@ func (p *ArgParser) ParseArgs(args []string) error {
 // Required marks a flag as required.
 // The constraint is enforced by ParseArgs.
 func (p *ArgParser) Required(name string) {
+	prefix := fmt.Sprintf("Required(%q): cannot be defined", name)
+
+	if name == "" {
+		panic(fmt.Sprintf("%s with empty name", prefix))
+	}
+
 	if flag := p.Lookup(name); flag == nil {
-		p.die("required: undefined flag: %s", name)
+		panic(fmt.Sprintf("%s for undefined flag", prefix))
 	}
+
 	if p.Parsed() {
-		p.die("required: %s: cannot define post-parse", name)
+		panic(fmt.Sprintf("%s post-parse", prefix))
 	}
+
 	p.required = append(p.required, name)
 }
 
 // StringAllowOptions restricts a string flag or positional argument to one of
 // the provided options. Enforced by ParseArgs.
 func (p *ArgParser) StringAllowOptions(target *string, name string, options []string) {
+	prefix := fmt.Sprintf("StringAllowOptions(%q): cannot be defined", name)
+
 	if name == "" {
-		p.die("allow options: cannot be defined with empty name")
+		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
 
 	found := false
@@ -174,14 +196,15 @@ func (p *ArgParser) StringAllowOptions(target *string, name string, options []st
 	if !found {
 		flag := p.Lookup(name)
 		if flag == nil {
-			p.die("allow options: undefined flag: %s", name)
+			panic(fmt.Sprintf("%s for undefined flag", prefix))
 		}
 		if flag.Value.Type() != "string" {
-			p.die("allow options: %s: flag is not for a string value", name)
+			panic(fmt.Sprintf("%s for a flag that is not a string value", prefix))
 		}
-		if p.Parsed() {
-			p.die("allow options: %s: cannot define post-parse", name)
-		}
+	}
+
+	if p.Parsed() {
+		panic(fmt.Sprintf("%s post-parse", prefix))
 	}
 
 	p.allowedOptions = append(p.allowedOptions, allowedOption{name, target, options})
@@ -190,8 +213,10 @@ func (p *ArgParser) StringAllowOptions(target *string, name string, options []st
 // StringAllowRegexp restricts a string flag or positional argument to values
 // matching re. Enforced by ParseArgs.
 func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
+	prefix := fmt.Sprintf("StringAllowRegexp(%q): cannot be defined", name)
+
 	if name == "" {
-		p.die("allow regexp: cannot be defined with empty name")
+		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
 
 	found := false
@@ -205,21 +230,23 @@ func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
 	if !found {
 		flag := p.Lookup(name)
 		if flag == nil {
-			p.die("allow regexp: undefined flag: %s", name)
+			panic(fmt.Sprintf("%s for undefined flag", prefix))
 		}
 		if flag.Value.Type() != "string" {
-			p.die("allow regexp: %s: flag is not for a string value", name)
-		}
-		if p.Parsed() {
-			p.die("allow regexp: %s: cannot define post-parse", name)
+			panic(fmt.Sprintf("%s for a flag that is not a string value", prefix))
 		}
 	}
 
 	rec, err := regexp.Compile(re)
 	if err != nil {
-		p.die("allow regexp: %s: %v", name, err)
+		panic(fmt.Sprintf("%s due to: %v", prefix, err))
 
 	}
+
+	if p.Parsed() {
+		panic(fmt.Sprintf("%s post-parse", prefix))
+	}
+
 	p.allowedRegexps = append(p.allowedRegexps, allowedRegexp{name, target, rec})
 }
 
@@ -228,33 +255,32 @@ func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
 // number. minN must be less or equal to maxN, unless maxN is -1, which means
 // that an inifinite number of positional arguments may be supplied.
 func (p *ArgParser) StringPosNVar(target *[]string, name, usage string, minN, maxN int) {
-	prefix := fmt.Sprintf("%s: varying positional argument", p.Name)
+	prefix := fmt.Sprintf("StringPosNVar(%q): cannot be defined", name)
 
 	if name == "" {
-		p.die("%s cannot be defined with empty name", prefix)
+		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
-
-	prefix = fmt.Sprintf("%s %q cannot be defined", prefix, name)
 
 	if minN < 0 {
-		p.die("%s with minN(%d) < 0", prefix, minN)
+		panic(fmt.Sprintf("%s with minN(%d) < 0", prefix, minN))
 	}
 	if maxN == 0 {
-		p.die("%s with maxN(%d) == 0", prefix, maxN)
+		panic(fmt.Sprintf("%s with maxN(0)", prefix))
 	}
 	if maxN < -1 {
-		p.die("%s with maxN(%d) < -1", prefix, maxN)
+		panic(fmt.Sprintf("%s with maxN(%d) < -1", prefix, maxN))
 	}
 	if maxN != -1 && minN > maxN {
-		p.die("%s with minN(%d) > maxN(%d)", prefix, minN, maxN)
+		panic(fmt.Sprintf("%s with minN(%d) > maxN(%d)", prefix, minN, maxN))
 	}
+
 	if p.posN != nil {
-		p.die("%s when a varying positional argument is already defined: %s", p.posN.name)
+		panic(fmt.Sprintf("%s as StringPosNVar(%q) is already defined", prefix, p.posN.name))
 	}
 
 	for _, pos := range p.pos {
 		if pos.name == name {
-			p.die("%s when a positional argument with the same name is already defined", prefix)
+			panic(fmt.Sprintf("%s as StringPosVar(%q) is already defined", prefix, name))
 		}
 	}
 
@@ -264,40 +290,30 @@ func (p *ArgParser) StringPosNVar(target *[]string, name, usage string, minN, ma
 // StringPosVar defines a required single string positional argument.
 // Call multiple times to define multiple fixed positional arguments.
 func (p *ArgParser) StringPosVar(target *string, name, usage string) {
-	prefix := fmt.Sprintf("%s: positional argument", p.Name)
+	prefix := fmt.Sprintf("StringPosVar(%q): cannot be defined", name)
 
 	if name == "" {
-		p.die("%s cannot be defined with empty name", prefix)
+		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
+
 	if flag := p.Lookup(name); flag != nil {
-		p.die("%s already redefined as flag: %s", prefix, name)
+		panic(fmt.Sprintf("%s as already defined as flag", prefix))
 	}
+
 	for _, pos := range p.pos {
 		if pos.name == name {
-			p.die("%s already defined: %s", prefix, name)
+			panic(fmt.Sprintf("%s as StringPosVar(%q) is already defined", prefix, name))
 		}
 		if pos.target == target {
-			p.die(
-				"%s %q cannot be defined using the same target as positional argument %q",
-				prefix, name, pos.name,
-			)
+			panic(fmt.Sprintf("%s using the same target as StringPosVar(%q)", prefix, pos.name))
 		}
 	}
+
 	if p.posN != nil {
-		p.die(
-			"%s cannot be defined when a varying positional argument is already defined: %s",
-			p.Name, p.posN.name,
-		)
+		panic(fmt.Sprintf("%s as StringPosNVar(%q) is already defined", prefix, p.posN.name))
 	}
 
 	p.pos = append(p.pos, pos{target, name, usage})
-}
-
-func (p *ArgParser) die(format string, args ...any) {
-	var new []interface{}
-	new = append(new, p.Name)
-	new = append(new, args...)
-	panic(fmt.Sprintf("%s: "+format, new...))
 }
 
 func (p *ArgParser) generateHelp() {
@@ -450,4 +466,18 @@ func (p *ArgParser) parseRequired() error {
 		return fmt.Errorf("missing required flags: %s", strings.Join(required, ", "))
 	}
 	return nil
+}
+
+func sliceDuplicates(items []string) []string {
+	count := make(map[string]int, len(items))
+	for _, s := range items {
+		count[s]++
+	}
+	var dups []string
+	for s, n := range count {
+		if n > 1 {
+			dups = append(dups, s)
+		}
+	}
+	return dups
 }

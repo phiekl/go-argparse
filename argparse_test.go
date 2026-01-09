@@ -17,10 +17,78 @@ func testError(t *testing.T, err error, expected string) {
 	}
 }
 
+func testPanic(t *testing.T, r any, msgx string) {
+	if r == nil {
+		t.Fatal("expected panic")
+	}
+
+	msg, ok := r.(string)
+	if !ok {
+		t.Fatalf("expected panic of type string, got %T", r)
+	}
+
+	if msg != msgx {
+		t.Errorf("panic msg : %q", msg)
+		t.Logf("panic msgx: %q", msgx)
+	}
+}
+
 func testNoError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("unexpected parsing error: %v", err)
 	}
+}
+
+func TestMutuallyExclusive_Die_Dupes(t *testing.T) {
+	defer func() {
+		msgx := "MutuallyExclusive([\"a-test\" \"a-test\"]): cannot be defined with duplicate values"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.MutuallyExclusive("a-test", "a-test")
+}
+
+func TestMutuallyExclusive_Die_LessThanTwoNames(t *testing.T) {
+	defer func() {
+		msgx := "MutuallyExclusive([\"a-test\"]): cannot be defined with less than two names"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.MutuallyExclusive("a-test")
+}
+
+func TestMutuallyExclusive_Die_PostParse(t *testing.T) {
+	defer func() {
+		msgx := "MutuallyExclusive([\"a-test\" \"b-test\"]): cannot be defined post-parse"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringVarP(&b, "b-test", "b", "default-b", "usage-b")
+	_ = p.ParseArgs([]string{"-a", "test"})
+	p.MutuallyExclusive("a-test", "b-test")
+}
+
+func TestMutuallyExclusive_Die_Undefined(t *testing.T) {
+	defer func() {
+		msgx :=
+			"MutuallyExclusive([\"a-test\" \"b-test\"]): cannot be defined for undefined flag \"b-test\""
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.MutuallyExclusive("a-test", "b-test")
+	_ = p.ParseArgs([]string{"-a", "test"})
 }
 
 func TestMutuallyExclusive_Fail(t *testing.T) {
@@ -68,6 +136,44 @@ func TestParseFlag_OK(t *testing.T) {
 	}
 }
 
+func TestRequired_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"Required(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	p.Required("")
+	_ = p.ParseArgs([]string{"-a", "test"})
+}
+
+func TestRequired_Die_PostParse(t *testing.T) {
+	defer func() {
+		msgx :=
+			"Required(\"a-test\"): cannot be defined post-parse"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	_ = p.ParseArgs([]string{"-a", "test"})
+	p.Required("a-test")
+}
+
+func TestRequired_Die_Undefined(t *testing.T) {
+	defer func() {
+		msgx :=
+			"Required(\"a-test\"): cannot be defined for undefined flag"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	p.Required("a-test")
+	_ = p.ParseArgs([]string{"-a", "test"})
+}
+
 func TestRequired_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
@@ -92,6 +198,59 @@ func TestRequired_OK(t *testing.T) {
 	testNoError(t, err)
 }
 
+func TestStringAllowOptions_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowOptions(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringAllowOptions(&a, "", []string{"x", "y", "z"})
+}
+
+func TestStringAllowOptions_Die_FlagNotString(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowOptions(\"b-test\"): cannot be defined for a flag that is not a string value"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	var b int
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.IntVarP(&b, "b-test", "b", 1, "usage-b")
+	p.StringAllowOptions(&a, "b-test", []string{"x", "y", "z"})
+}
+
+func TestStringAllowOptions_Die_PostParse(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowOptions(\"a-test\"): cannot be defined post-parse"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	_ = p.ParseArgs([]string{"-a", "test"})
+	p.StringAllowOptions(&a, "a-test", []string{"x", "y", "z"})
+}
+
+func TestStringAllowOptions_Die_Undefined(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowOptions(\"a-test\"): cannot be defined for undefined flag"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringAllowOptions(&a, "a-test", []string{"x", "y", "z"})
+}
+
 func TestStringAllowOptions_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 
@@ -114,6 +273,74 @@ func TestStringAllowOptions_OK(t *testing.T) {
 	testNoError(t, err)
 }
 
+func TestStringAllowRegexp_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowRegexp(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringAllowRegexp(&a, "", ".*")
+}
+
+func TestStringAllowRegexp_Die_FlagNotString(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowRegexp(\"b-test\"): cannot be defined for a flag that is not a string value"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	var b int
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.IntVarP(&b, "b-test", "b", 1, "usage-b")
+	p.StringAllowRegexp(&a, "b-test", ".*")
+}
+
+func TestStringAllowRegexp_Die_PostParse(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowRegexp(\"b-test\"): cannot be defined post-parse"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringVarP(&b, "b-test", "b", "default-b", "usage-b")
+	_ = p.ParseArgs([]string{"-a", "test"})
+	p.StringAllowRegexp(&b, "b-test", ".*")
+}
+
+func TestStringAllowRegexp_Die_RegexCompile(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowRegexp(\"a-test\"): cannot be defined due to: error parsing regexp: missing closing ]: `[`"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringAllowRegexp(&a, "a-test", "[")
+	_ = p.ParseArgs([]string{"-a", "test"})
+}
+
+func TestStringAllowRegexp_Die_Undefined(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringAllowRegexp(\"a-test\"): cannot be defined for undefined flag"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringAllowRegexp(&a, "a-test", ".*")
+}
+
 func TestStringAllowRegexp_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 
@@ -134,6 +361,90 @@ func TestStringAllowRegexp_OK(t *testing.T) {
 	args := []string{"-a", "abc"}
 	err := p.ParseArgs(args)
 	testNoError(t, err)
+}
+
+func TestStringPosNVar_Die_AlreadyDefinedPosNVar(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosNVar(\"b-test\"): cannot be defined as StringPosNVar(\"a-test\") is already defined"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b []string
+	p.StringPosNVar(&a, "a-test", "usage-a", 1, 2)
+	p.StringPosNVar(&b, "b-test", "usage-b", 1, 2)
+}
+
+func TestStringPosNVar_Die_AlreadyDefinedPosVar(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosNVar(\"a-test\"): cannot be defined as StringPosVar(\"a-test\") is already defined"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	var b []string
+	p.StringPosVar(&a, "a-test", "usage-a")
+	p.StringPosNVar(&b, "a-test", "usage-a", 1, 2)
+}
+
+func TestStringPosNVar_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosNVar(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	p.StringPosNVar(&a, "", "usage-a", 1, 2)
+}
+
+func TestStringPosNVar_Die_MaxNEqualZero(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosNVar(\"a-test\"): cannot be defined with maxN(0)"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	p.StringPosNVar(&a, "a-test", "usage-a", 1, 0)
+}
+
+func TestStringPosNVar_Die_MaxNLessThanMinusOne(t *testing.T) {
+	defer func() {
+		msgx := "StringPosNVar(\"a-test\"): cannot be defined with maxN(-2) < -1"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	p.StringPosNVar(&a, "a-test", "usage-a", 1, -2)
+}
+
+func TestStringPosNVar_Die_MinNGreaterThanMaxN(t *testing.T) {
+	defer func() {
+		msgx := "StringPosNVar(\"a-test\"): cannot be defined with minN(2) > maxN(1)"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	p.StringPosNVar(&a, "a-test", "usage-a", 2, 1)
+}
+
+func TestStringPosNVar_Die_MinNLessThanZero(t *testing.T) {
+	defer func() {
+		msgx := "StringPosNVar(\"a-test\"): cannot be defined with minN(-1) < 0"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	p.StringPosNVar(&a, "a-test", "usage-a", -1, 2)
 }
 
 func TestStringPosNVar_Fail_TooFew(t *testing.T) {
@@ -243,6 +554,71 @@ func TestStringPosNVar_OK_Min3Max3(t *testing.T) {
 	if a[2] != "c" {
 		t.Fatalf("a[2]: expected parsed value 'c', got: %q", a[2])
 	}
+}
+
+func TestStringPosVar_Die_AlreadyDefinedAsFlag(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosVar(\"a-test\"): cannot be defined as already defined as flag"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringPosVar(&b, "a-test", "usage-a")
+}
+
+func TestStringPosVar_Die_AlreadyDefinedPosNVar(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosVar(\"b-test\"): cannot be defined as StringPosNVar(\"a-test\") is already defined"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a []string
+	var b string
+	p.StringPosNVar(&a, "a-test", "usage-a", 1, 2)
+	p.StringPosVar(&b, "b-test", "usage-b")
+}
+
+func TestStringPosVar_Die_AlreadyDefinedPosVarName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosVar(\"a-test\"): cannot be defined as StringPosVar(\"a-test\") is already defined"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b string
+	p.StringPosVar(&a, "a-test", "usage-a")
+	p.StringPosVar(&b, "a-test", "usage-a")
+}
+
+func TestStringPosVar_Die_AlreadyDefinedPosVarTarget(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosVar(\"b-test\"): cannot be defined using the same target as StringPosVar(\"a-test\")"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringPosVar(&a, "a-test", "usage-a")
+	p.StringPosVar(&a, "b-test", "usage-b")
+}
+
+func TestStringPosVar_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringPosVar(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringPosVar(&a, "", "usage-a")
 }
 
 func TestStringPosVar_Fail(t *testing.T) {
