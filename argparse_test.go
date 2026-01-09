@@ -23,7 +23,7 @@ func testNoError(t *testing.T, err error) {
 	}
 }
 
-func TestMutuallyExclusiveFail(t *testing.T) {
+func TestMutuallyExclusive_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -35,7 +35,7 @@ func TestMutuallyExclusiveFail(t *testing.T) {
 	testError(t, err, "a-test and b-test are mutually exclusive flags")
 }
 
-func TestMutuallyExclusiveOK(t *testing.T) {
+func TestMutuallyExclusive_OK(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -47,7 +47,7 @@ func TestMutuallyExclusiveOK(t *testing.T) {
 	testNoError(t, err)
 }
 
-func TestParseFlagFail(t *testing.T) {
+func TestParseFlag_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -56,7 +56,7 @@ func TestParseFlagFail(t *testing.T) {
 	testError(t, err, "unknown shorthand flag: 'b' in -b")
 }
 
-func TestParseFlagOK(t *testing.T) {
+func TestParseFlag_OK(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -68,7 +68,7 @@ func TestParseFlagOK(t *testing.T) {
 	}
 }
 
-func TestRequiredFail(t *testing.T) {
+func TestRequired_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -80,7 +80,7 @@ func TestRequiredFail(t *testing.T) {
 	testError(t, err, "missing required flag: b-test")
 }
 
-func TestRequiredOK(t *testing.T) {
+func TestRequired_OK(t *testing.T) {
 	p := NewArgParser("testprog")
 	var a string
 	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
@@ -92,7 +92,7 @@ func TestRequiredOK(t *testing.T) {
 	testNoError(t, err)
 }
 
-func TestStringAllowOptionsFail(t *testing.T) {
+func TestStringAllowOptions_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a string
@@ -103,7 +103,7 @@ func TestStringAllowOptionsFail(t *testing.T) {
 	testError(t, err, "a-test: invalid value: \"test4\" is not among options: [\"test1\" \"test2\" \"test3\"]")
 }
 
-func TestStringAllowOptionsOK(t *testing.T) {
+func TestStringAllowOptions_OK(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a string
@@ -114,7 +114,7 @@ func TestStringAllowOptionsOK(t *testing.T) {
 	testNoError(t, err)
 }
 
-func TestStringAllowRegexpFail(t *testing.T) {
+func TestStringAllowRegexp_Fail(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a string
@@ -125,7 +125,7 @@ func TestStringAllowRegexpFail(t *testing.T) {
 	testError(t, err, "a-test: invalid value: \"b\" is not matching regexp \"^a\"")
 }
 
-func TestStringAllowRegexpOK(t *testing.T) {
+func TestStringAllowRegexp_OK(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a string
@@ -136,37 +136,7 @@ func TestStringAllowRegexpOK(t *testing.T) {
 	testNoError(t, err)
 }
 
-func TestStringPosVarFail(t *testing.T) {
-	p := NewArgParser("testprog")
-
-	var a string
-	p.StringPosVar(&a, "a", "usage-a")
-	var b string
-	p.StringPosVar(&b, "b", "usage-b")
-	args := []string{"x"}
-	err := p.ParseArgs(args)
-	testError(t, err, "insufficient number of positional arguments, see --help")
-}
-
-func TestStringPosVarOK(t *testing.T) {
-	p := NewArgParser("testprog")
-
-	var a string
-	p.StringPosVar(&a, "a", "usage-a")
-	var b string
-	p.StringPosVar(&b, "b", "usage-b")
-	args := []string{"x", "y"}
-	err := p.ParseArgs(args)
-	testNoError(t, err)
-	if a != "x" {
-		t.Fatalf("a: expected parsed value 'x', got: %q", a)
-	}
-	if b != "y" {
-		t.Fatalf("b: expected parsed value 'y', got: %q", b)
-	}
-}
-
-func TestStringPosNVarFailTooFew(t *testing.T) {
+func TestStringPosNVar_Fail_TooFew(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -176,7 +146,7 @@ func TestStringPosNVarFailTooFew(t *testing.T) {
 	testError(t, err, "no \"a\" positional argument(s) provided, see --help")
 }
 
-func TestStringPosNVarFailTooMany(t *testing.T) {
+func TestStringPosNVar_Fail_TooMany(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -186,7 +156,7 @@ func TestStringPosNVarFailTooMany(t *testing.T) {
 	testError(t, err, "got 4 \"a\" positional argument(s), expected 3 at most, see --help")
 }
 
-func TestStringPosNVarOKInfiniteNoneProvided(t *testing.T) {
+func TestStringPosNVar_OK_InfiniteNoneProvided(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -199,7 +169,7 @@ func TestStringPosNVarOKInfiniteNoneProvided(t *testing.T) {
 	}
 }
 
-func TestStringPosNVarOKInfiniteProvided(t *testing.T) {
+func TestStringPosNVar_OK_InfiniteProvided(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -218,7 +188,7 @@ func TestStringPosNVarOKInfiniteProvided(t *testing.T) {
 	}
 }
 
-func TestStringPosNVarOKMin1Max2Provided1(t *testing.T) {
+func TestStringPosNVar_OK_Min1Max2Provided1(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -234,7 +204,7 @@ func TestStringPosNVarOKMin1Max2Provided1(t *testing.T) {
 	}
 }
 
-func TestStringPosNVarOKMin1Max2Provided2(t *testing.T) {
+func TestStringPosNVar_OK_Min1Max2Provided2(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -253,7 +223,7 @@ func TestStringPosNVarOKMin1Max2Provided2(t *testing.T) {
 	}
 }
 
-func TestStringPosNVarOKMin3Max3(t *testing.T) {
+func TestStringPosNVar_OK_Min3Max3(t *testing.T) {
 	p := NewArgParser("testprog")
 
 	var a []string
@@ -272,5 +242,35 @@ func TestStringPosNVarOKMin3Max3(t *testing.T) {
 	}
 	if a[2] != "c" {
 		t.Fatalf("a[2]: expected parsed value 'c', got: %q", a[2])
+	}
+}
+
+func TestStringPosVar_Fail(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a string
+	p.StringPosVar(&a, "a", "usage-a")
+	var b string
+	p.StringPosVar(&b, "b", "usage-b")
+	args := []string{"x"}
+	err := p.ParseArgs(args)
+	testError(t, err, "insufficient number of positional arguments, see --help")
+}
+
+func TestStringPosVar_OK(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a string
+	p.StringPosVar(&a, "a", "usage-a")
+	var b string
+	p.StringPosVar(&b, "b", "usage-b")
+	args := []string{"x", "y"}
+	err := p.ParseArgs(args)
+	testNoError(t, err)
+	if a != "x" {
+		t.Fatalf("a: expected parsed value 'x', got: %q", a)
+	}
+	if b != "y" {
+		t.Fatalf("b: expected parsed value 'y', got: %q", b)
 	}
 }
