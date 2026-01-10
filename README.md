@@ -72,13 +72,13 @@ func main() {
 
 Running this program with --help would generate:
 ```
-usage: file-ext-renamer [flag].. dir [extension]..
+usage: file-ext-renamer [option].. dir [extension]..
 
-positional arguments:
+arguments:
   dir         directory where files will be renamed
   extension   rename files with this file extension (all files if not given)
 
-flags:
+options:
   -h, --help                   display this help text and exit
   -l, --log-format string      log output format (options: text, json) (default "text")
   -n, --new-extension string   rename files to this file extension

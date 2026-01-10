@@ -353,11 +353,11 @@ func (p *ArgParser) generateHelp(rc int) {
 	}
 
 	out := ""
-	out += fmt.Sprintf("usage: %s [flag]..%s\n\n", p.Name, posArgs)
+	out += fmt.Sprintf("usage: %s [option]..%s\n\n", p.Name, posArgs)
 
 	if posLen > 0 {
 		format := fmt.Sprintf("  %%-%ds   %%s\n", posLen)
-		out += "positional arguments:\n"
+		out += "arguments:\n"
 		for _, pos := range p.pos {
 			out += fmt.Sprintf(format, pos.name, pos.usage)
 		}
@@ -367,7 +367,7 @@ func (p *ArgParser) generateHelp(rc int) {
 		out += "\n"
 	}
 
-	out += "flags:\n"
+	out += "options:\n"
 	out += p.FlagUsages()
 
 	if rc == 0 {

@@ -91,12 +91,12 @@ func TestHelp_NoArguments(t *testing.T) {
 		return
 	}
 
-	stderrx := "usage: testprog [flag].. b-test\n"
+	stderrx := "usage: testprog [option].. b-test\n"
 	stderrx += "\n"
-	stderrx += "positional arguments:\n"
+	stderrx += "arguments:\n"
 	stderrx += "  b-test   usage-b\n"
 	stderrx += "\n"
-	stderrx += "flags:\n"
+	stderrx += "options:\n"
 	stderrx += "  -h, --help            display this help text and exit\n"
 	stderrx += "  -a, --a-test string   usage-a (default \"default-a\")\n"
 	testExec(t, 1, "", stderrx)
@@ -112,9 +112,9 @@ func TestHelp_Requested_FlagsOnly(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag]..\n"
+	stdoutx := "usage: testprog [option]..\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help            display this help text and exit\n"
 	stdoutx += "  -a, --a-test string   usage-a (default \"default-a\")\n"
 	testExec(t, 0, stdoutx, "")
@@ -130,12 +130,12 @@ func TestHelp_Requested_PosArg(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag].. a-test\n"
+	stdoutx := "usage: testprog [option].. a-test\n"
 	stdoutx += "\n"
-	stdoutx += "positional arguments:\n"
+	stdoutx += "arguments:\n"
 	stdoutx += "  a-test   usage-a\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help   display this help text and exit\n"
 	testExec(t, 0, stdoutx, "")
 }
@@ -152,13 +152,13 @@ func TestHelp_Requested_PosNArgMin0Infinite(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag].. a-test [b-test]..\n"
+	stdoutx := "usage: testprog [option].. a-test [b-test]..\n"
 	stdoutx += "\n"
-	stdoutx += "positional arguments:\n"
+	stdoutx += "arguments:\n"
 	stdoutx += "  a-test   usage-a\n"
 	stdoutx += "  b-test   usage-b\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help   display this help text and exit\n"
 	testExec(t, 0, stdoutx, "")
 }
@@ -175,13 +175,13 @@ func TestHelp_Requested_PosNArgMin0Max3(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag].. a-test [b-test [b-test [b-test]]]\n"
+	stdoutx := "usage: testprog [option].. a-test [b-test [b-test [b-test]]]\n"
 	stdoutx += "\n"
-	stdoutx += "positional arguments:\n"
+	stdoutx += "arguments:\n"
 	stdoutx += "  a-test   usage-a\n"
 	stdoutx += "  b-test   usage-b\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help   display this help text and exit\n"
 	testExec(t, 0, stdoutx, "")
 }
@@ -198,13 +198,13 @@ func TestHelp_Requested_PosNArgMin1Max3(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag].. a-test b-test [b-test [b-test]]\n"
+	stdoutx := "usage: testprog [option].. a-test b-test [b-test [b-test]]\n"
 	stdoutx += "\n"
-	stdoutx += "positional arguments:\n"
+	stdoutx += "arguments:\n"
 	stdoutx += "  a-test   usage-a\n"
 	stdoutx += "  b-test   usage-b\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help   display this help text and exit\n"
 	testExec(t, 0, stdoutx, "")
 }
@@ -221,13 +221,13 @@ func TestHelp_Requested_PosNArgMin3MaxInfinite(t *testing.T) {
 		return
 	}
 
-	stdoutx := "usage: testprog [flag].. a-test b-test b-test b-test..\n"
+	stdoutx := "usage: testprog [option].. a-test b-test b-test b-test..\n"
 	stdoutx += "\n"
-	stdoutx += "positional arguments:\n"
+	stdoutx += "arguments:\n"
 	stdoutx += "  a-test   usage-a\n"
 	stdoutx += "  b-test   usage-b\n"
 	stdoutx += "\n"
-	stdoutx += "flags:\n"
+	stdoutx += "options:\n"
 	stdoutx += "  -h, --help   display this help text and exit\n"
 	testExec(t, 0, stdoutx, "")
 }
