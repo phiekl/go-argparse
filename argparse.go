@@ -138,8 +138,11 @@ func (p *ArgParser) ParseArgs(args []string) error {
 		p.Error = err
 		return err
 	}
+	if len(args) == 0 && p.requiredArgs() {
+		p.generateHelp(1)
+	}
 	if help, _ := p.GetBool("help"); help {
-		p.generateHelp()
+		p.generateHelp(0)
 	}
 	if err := p.parseNargs(); err != nil {
 		return err
@@ -316,7 +319,7 @@ func (p *ArgParser) StringPosVar(target *string, name, usage string) {
 	p.pos = append(p.pos, pos{target, name, usage})
 }
 
-func (p *ArgParser) generateHelp() {
+func (p *ArgParser) generateHelp(rc int) {
 	posArgs := ""
 	posLen := 0
 
@@ -349,23 +352,31 @@ func (p *ArgParser) generateHelp() {
 		}
 	}
 
-	fmt.Printf("usage: %s [flag]..%s\n\n", p.Name, posArgs)
+	out := ""
+	out += fmt.Sprintf("usage: %s [flag]..%s\n\n", p.Name, posArgs)
 
 	if posLen > 0 {
 		format := fmt.Sprintf("  %%-%ds   %%s\n", posLen)
-		fmt.Printf("positional arguments:\n")
+		out += "positional arguments:\n"
 		for _, pos := range p.pos {
-			fmt.Printf(format, pos.name, pos.usage)
+			out += fmt.Sprintf(format, pos.name, pos.usage)
 		}
 		if p.posN != nil {
-			fmt.Printf(format, p.posN.name, p.posN.usage)
+			out += fmt.Sprintf(format, p.posN.name, p.posN.usage)
 		}
-		fmt.Printf("\n")
+		out += "\n"
 	}
 
-	fmt.Printf("flags:\n")
-	fmt.Printf("%s", p.FlagUsages())
-	os.Exit(0)
+	out += "flags:\n"
+	out += p.FlagUsages()
+
+	if rc == 0 {
+		fmt.Printf("%s", out)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s", out)
+	}
+
+	os.Exit(rc)
 }
 
 func (p *ArgParser) parseAllowed() error {
@@ -466,6 +477,19 @@ func (p *ArgParser) parseRequired() error {
 		return fmt.Errorf("missing required flags: %s", strings.Join(required, ", "))
 	}
 	return nil
+}
+
+func (p *ArgParser) requiredArgs() bool {
+	if len(p.pos) > 0 {
+		return true
+	}
+	if p.posN != nil && p.posN.minN > 0 {
+		return true
+	}
+	if len(p.required) > 0 {
+		return true
+	}
+	return false
 }
 
 func sliceDuplicates(items []string) []string {

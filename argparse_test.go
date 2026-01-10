@@ -80,6 +80,28 @@ func testNoError(t *testing.T, err error) {
 	}
 }
 
+func TestHelp_NoArguments(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a, b string
+		p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+		p.StringPosVar(&b, "b-test", "usage-b")
+		args := []string{}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stderrx := "usage: testprog [flag].. b-test\n"
+	stderrx += "\n"
+	stderrx += "positional arguments:\n"
+	stderrx += "  b-test   usage-b\n"
+	stderrx += "\n"
+	stderrx += "flags:\n"
+	stderrx += "  -h, --help            display this help text and exit\n"
+	stderrx += "  -a, --a-test string   usage-a (default \"default-a\")\n"
+	testExec(t, 1, "", stderrx)
+}
+
 func TestHelp_Requested_FlagsOnly(t *testing.T) {
 	if testExecRun() {
 		p := NewArgParser("testprog")
@@ -621,11 +643,13 @@ func TestStringPosNVar_Die_MinNLessThanZero(t *testing.T) {
 func TestStringPosNVar_Fail_TooFew(t *testing.T) {
 	p := NewArgParser("testprog")
 
-	var a []string
-	p.StringPosNVar(&a, "a", "usage-a", 1, -1)
-	args := []string{}
+	var a string
+	p.StringPosVar(&a, "a", "usage-a")
+	var b []string
+	p.StringPosNVar(&b, "b", "usage-b", 1, -1)
+	args := []string{"x"}
 	err := p.ParseArgs(args)
-	testError(t, err, "no \"a\" positional argument(s) provided, see --help")
+	testError(t, err, "no \"b\" positional argument(s) provided, see --help")
 }
 
 func TestStringPosNVar_Fail_TooMany(t *testing.T) {
@@ -641,13 +665,15 @@ func TestStringPosNVar_Fail_TooMany(t *testing.T) {
 func TestStringPosNVar_OK_InfiniteNoneProvided(t *testing.T) {
 	p := NewArgParser("testprog")
 
-	var a []string
-	p.StringPosNVar(&a, "a", "usage-a", 0, -1)
-	args := []string{}
+	var a string
+	p.StringPosVar(&a, "a", "usage-a")
+	var b []string
+	p.StringPosNVar(&b, "b", "usage-b", 0, -1)
+	args := []string{"x"}
 	err := p.ParseArgs(args)
 	testNoError(t, err)
-	if len(a) != 0 {
-		t.Fatalf("a: expected zero-length, got: %d", len(a))
+	if len(b) != 0 {
+		t.Fatalf("b: expected zero-length, got: %d", len(a))
 	}
 }
 
