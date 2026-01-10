@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 This package is an extension of [spf13/pflag](https://pkg.go.dev/github.com/spf13/pflag#FlagSet) with common CLI parsing features:
 
-- Required flags/arguments.
+- Required and non-empty flags/arguments.
 - Mutually exclusive flags.
 - Allowed string choices and regex validation.
 - Positional arguments.

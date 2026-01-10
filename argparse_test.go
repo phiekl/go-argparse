@@ -556,6 +556,97 @@ func TestStringAllowRegexp_OK(t *testing.T) {
 	testNoError(t, err)
 }
 
+func TestStringDenyEmpty_Die_EmptyName(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringDenyEmpty(\"\"): cannot be defined with empty name"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringDenyEmpty(&a, "")
+}
+
+func TestStringDenyEmpty_Die_FlagNotString(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringDenyEmpty(\"b-test\"): cannot be defined for a flag that is not a string value"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	var b int
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.IntVarP(&b, "b-test", "b", 1, "usage-b")
+	p.StringDenyEmpty(&a, "b-test")
+}
+
+func TestStringDenyEmpty_Die_PostParse(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringDenyEmpty(\"b-test\"): cannot be defined post-parse"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a, b string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringVarP(&b, "b-test", "b", "default-b", "usage-b")
+	_ = p.ParseArgs([]string{"-a", "test"})
+	p.StringDenyEmpty(&b, "b-test")
+}
+
+func TestStringDenyEmpty_Die_Undefined(t *testing.T) {
+	defer func() {
+		msgx :=
+			"StringDenyEmpty(\"a-test\"): cannot be defined for undefined flag"
+		testPanic(t, recover(), msgx)
+	}()
+
+	p := NewArgParser("testprog")
+	var a string
+	p.StringDenyEmpty(&a, "a-test")
+}
+
+func TestStringDenyEmpty_Fail_PosVar(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a, b, c string
+	p.StringPosVar(&a, "a-test", "usage-a")
+	p.StringDenyEmpty(&a, "a-test")
+	p.StringPosVar(&b, "b-test", "usage-b")
+	p.StringDenyEmpty(&b, "b-test")
+	p.StringPosVar(&c, "c-test", "usage-c")
+	p.StringDenyEmpty(&c, "c-test")
+	args := []string{"", "y", ""}
+	err := p.ParseArgs(args)
+	testError(t, err, "flags/arguments are empty: a-test, c-test")
+}
+
+func TestStringDenyEmpty_Fail_StringVarP(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringDenyEmpty(&a, "a-test")
+	args := []string{"-a", ""}
+	err := p.ParseArgs(args)
+	testError(t, err, "flag/argument is empty: a-test")
+}
+
+func TestStringDenyEmpty_OK(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a string
+	p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+	p.StringDenyEmpty(&a, "a-test")
+	args := []string{"-a", "x"}
+	err := p.ParseArgs(args)
+	testNoError(t, err)
+}
+
 func TestStringPosNVar_Die_AlreadyDefinedPosNVar(t *testing.T) {
 	defer func() {
 		msgx :=

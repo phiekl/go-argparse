@@ -4,7 +4,7 @@
 
 // Package argparse extends spf13/pflag with common CLI parsing features:
 //
-//   - Required flags/arguments.
+//   - Required and non-empty flags/arguments.
 //   - Mutually exclusive flags.
 //   - Allowed string choices and regex validation.
 //   - Positional arguments.
@@ -35,6 +35,7 @@ type ArgParser struct {
 
 	allowedRegexps     []allowedRegexp
 	allowedOptions     []allowedOption
+	denyEmpty          []string
 	pos                []pos
 	posN               *posN
 	mutuallyExclusives [][]string
@@ -153,6 +154,9 @@ func (p *ArgParser) ParseArgs(args []string) error {
 	if err := p.parseMutuallyExclusive(); err != nil {
 		return err
 	}
+	if err := p.parseDenyEmpty(); err != nil {
+		return err
+	}
 	if err := p.parseAllowed(); err != nil {
 		return err
 	}
@@ -251,6 +255,41 @@ func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
 	}
 
 	p.allowedRegexps = append(p.allowedRegexps, allowedRegexp{name, target, rec})
+}
+
+// StringDenyEmpty marks the named string flag or positional argument as
+// required to have a non-empty value (i.e. not "").
+// Enforced by ParseArgs.
+func (p *ArgParser) StringDenyEmpty(target *string, name string) {
+	prefix := fmt.Sprintf("StringDenyEmpty(%q): cannot be defined", name)
+
+	if name == "" {
+		panic(fmt.Sprintf("%s with empty name", prefix))
+	}
+
+	found := false
+	for _, pos := range p.pos {
+		if pos.name == name {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		flag := p.Lookup(name)
+		if flag == nil {
+			panic(fmt.Sprintf("%s for undefined flag", prefix))
+		}
+		if flag.Value.Type() != "string" {
+			panic(fmt.Sprintf("%s for a flag that is not a string value", prefix))
+		}
+	}
+
+	if p.Parsed() {
+		panic(fmt.Sprintf("%s post-parse", prefix))
+	}
+
+	p.denyEmpty = append(p.denyEmpty, name)
 }
 
 // StringPosNVar defines a variable number of string positional arguments. minN
@@ -460,6 +499,36 @@ func (p *ArgParser) parseNargs() error {
 		return fmt.Errorf("unexpected number of positional arguments")
 	}
 
+	return nil
+}
+
+func (p *ArgParser) parseDenyEmpty() error {
+	var empty []string
+	for _, name := range p.denyEmpty {
+		flag := p.Lookup(name)
+		if flag == nil {
+			found := false
+			for _, pos := range p.pos {
+				if pos.name == name {
+					found = true
+					if *pos.target == "" {
+						empty = append(empty, name)
+					}
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("wtf")
+			}
+		} else if flag.Value.String() == "" {
+			empty = append(empty, name)
+		}
+	}
+	if len(empty) == 1 {
+		return fmt.Errorf("flag/argument is empty: %s", empty[0])
+	} else if len(empty) > 1 {
+		return fmt.Errorf("flags/arguments are empty: %s", strings.Join(empty, ", "))
+	}
 	return nil
 }
 
