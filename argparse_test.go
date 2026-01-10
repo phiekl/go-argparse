@@ -5,6 +5,9 @@
 package argparse
 
 import (
+	"bytes"
+	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -15,6 +18,44 @@ func testError(t *testing.T, err error, expected string) {
 	if err.Error() != expected {
 		t.Fatalf("expected parsing error %q, got %q\n", expected, err)
 	}
+}
+
+func testExec(t *testing.T, rcx int, stdoutx, stderrx string) {
+	cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(os.Environ(), "TEST_EXIT_RUN=1")
+
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
+
+	rc := 0
+	if err := cmd.Run(); err != nil {
+		e, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("unknown exec error: %v\n", err)
+		}
+		rc = e.ExitCode()
+	}
+
+	stdout := stdoutBuffer.String()
+	stderr := stderrBuffer.String()
+
+	if rc != rcx {
+		t.Errorf("expected exit code %d, got %d", rcx, rc)
+	}
+
+	if stdout != stdoutx {
+		t.Errorf("stdout : %q", stdout)
+		t.Logf("stdoutx: %q", stdoutx)
+	}
+	if stderr != stderrx {
+		t.Errorf("stderr : %q", stderr)
+		t.Logf("stderrx: %q", stderrx)
+	}
+}
+
+func testExecRun() bool {
+	return os.Getenv("TEST_EXIT_RUN") == "1"
 }
 
 func testPanic(t *testing.T, r any, msgx string) {
@@ -37,6 +78,136 @@ func testNoError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("unexpected parsing error: %v", err)
 	}
+}
+
+func TestHelp_Requested_FlagsOnly(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringVarP(&a, "a-test", "a", "default-a", "usage-a")
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag]..\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help            display this help text and exit\n"
+	stdoutx += "  -a, --a-test string   usage-a (default \"default-a\")\n"
+	testExec(t, 0, stdoutx, "")
+}
+
+func TestHelp_Requested_PosArg(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringPosVar(&a, "a-test", "usage-a")
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag].. a-test\n"
+	stdoutx += "\n"
+	stdoutx += "positional arguments:\n"
+	stdoutx += "  a-test   usage-a\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help   display this help text and exit\n"
+	testExec(t, 0, stdoutx, "")
+}
+
+func TestHelp_Requested_PosNArgMin0Infinite(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringPosVar(&a, "a-test", "usage-a")
+		var b []string
+		p.StringPosNVar(&b, "b-test", "usage-b", 0, -1)
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag].. a-test [b-test]..\n"
+	stdoutx += "\n"
+	stdoutx += "positional arguments:\n"
+	stdoutx += "  a-test   usage-a\n"
+	stdoutx += "  b-test   usage-b\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help   display this help text and exit\n"
+	testExec(t, 0, stdoutx, "")
+}
+
+func TestHelp_Requested_PosNArgMin0Max3(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringPosVar(&a, "a-test", "usage-a")
+		var b []string
+		p.StringPosNVar(&b, "b-test", "usage-b", 0, 3)
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag].. a-test [b-test [b-test [b-test]]]\n"
+	stdoutx += "\n"
+	stdoutx += "positional arguments:\n"
+	stdoutx += "  a-test   usage-a\n"
+	stdoutx += "  b-test   usage-b\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help   display this help text and exit\n"
+	testExec(t, 0, stdoutx, "")
+}
+
+func TestHelp_Requested_PosNArgMin1Max3(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringPosVar(&a, "a-test", "usage-a")
+		var b []string
+		p.StringPosNVar(&b, "b-test", "usage-b", 1, 3)
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag].. a-test b-test [b-test [b-test]]\n"
+	stdoutx += "\n"
+	stdoutx += "positional arguments:\n"
+	stdoutx += "  a-test   usage-a\n"
+	stdoutx += "  b-test   usage-b\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help   display this help text and exit\n"
+	testExec(t, 0, stdoutx, "")
+}
+
+func TestHelp_Requested_PosNArgMin3MaxInfinite(t *testing.T) {
+	if testExecRun() {
+		p := NewArgParser("testprog")
+		var a string
+		p.StringPosVar(&a, "a-test", "usage-a")
+		var b []string
+		p.StringPosNVar(&b, "b-test", "usage-b", 3, -1)
+		args := []string{"--help"}
+		_ = p.ParseArgs(args)
+		return
+	}
+
+	stdoutx := "usage: testprog [flag].. a-test b-test b-test b-test..\n"
+	stdoutx += "\n"
+	stdoutx += "positional arguments:\n"
+	stdoutx += "  a-test   usage-a\n"
+	stdoutx += "  b-test   usage-b\n"
+	stdoutx += "\n"
+	stdoutx += "flags:\n"
+	stdoutx += "  -h, --help   display this help text and exit\n"
+	testExec(t, 0, stdoutx, "")
 }
 
 func TestMutuallyExclusive_Die_Dupes(t *testing.T) {

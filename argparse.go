@@ -328,7 +328,7 @@ func (p *ArgParser) generateHelp() {
 	}
 
 	if p.posN != nil {
-		if p.posN.minN == 0 {
+		if p.posN.minN == 0 && p.posN.maxN == -1 {
 			posArgs = posArgs + " [" + p.posN.name + "]"
 		}
 		for i := 1; i <= p.posN.minN; i++ {
