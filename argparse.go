@@ -8,6 +8,8 @@
 //   - Mutually exclusive flags.
 //   - Allowed string choices and regex validation.
 //   - Positional arguments.
+//   - Commands, where the first positional argument selects a commands
+//     implementation, with any remaining arguments being passed to it.
 package argparse
 
 import (
@@ -35,6 +37,10 @@ type ArgParser struct {
 
 	allowedRegexps     []allowedRegexp
 	allowedOptions     []allowedOption
+	command            *Command
+	commandArgs        []commandArg
+	commandName        *string
+	commandOptions     *[]string
 	denyEmpty          []string
 	pos                []pos
 	posN               *posN
@@ -72,6 +78,12 @@ func (a *allowedRegexp) check() error {
 	return nil
 }
 
+type commandArg struct {
+	name        string
+	description string
+	impl        Command
+}
+
 type pos struct {
 	target *string
 	name   string
@@ -99,6 +111,54 @@ func NewArgParser(name string) *ArgParser {
 		"display this help text and exit",
 	)
 	return &p
+}
+
+// CommandInit registers the variables populated by command parsing:
+// the selected command implementation, the selected command name, and any
+// remaining arguments after the command name.
+//
+// Must be called before Command and before parsing.
+func (p *ArgParser) CommandInit(commandTarget *Command, nameTarget *string, optionsTarget *[]string) {
+	prefix := "CommandInit(): cannot be defined"
+
+	if p.command != nil {
+		panic(fmt.Sprintf("%s as CommandInit() has already been defined", prefix))
+	}
+	p.command = commandTarget
+	p.commandName = nameTarget
+	p.commandOptions = optionsTarget
+}
+
+// Command registers a named subcommand.
+//
+// The command name is required and is parsed like a primary positional argument.
+// Call Command once per supported subcommand. CommandInit must be called first.
+func (p *ArgParser) Command(name string, description string, command Command) {
+	prefix := fmt.Sprintf("Command(%q): cannot be defined", name)
+
+	if name == "" {
+		panic(fmt.Sprintf("%s with empty name", prefix))
+	}
+	if p.command == nil {
+		panic(fmt.Sprintf("%s as CommandInit() has not been defined", prefix))
+	}
+	if len(p.pos) > 0 {
+		panic(fmt.Sprintf("%s as StringPosVar() has been defined", prefix))
+	}
+	if p.posN != nil {
+		panic(fmt.Sprintf("%s as StringPosNVar() has been defined", prefix))
+	}
+
+	for _, commandArg := range p.commandArgs {
+		if commandArg.name == name {
+			panic(fmt.Sprintf("%s as Command(%q) is already defined", prefix, name))
+		}
+	}
+
+	// Bind the Command implementation to its BaseCommand.
+	command.Bind(command)
+
+	p.commandArgs = append(p.commandArgs, commandArg{name, description, command})
 }
 
 // MutuallyExclusive declares that at most one of the named flags may be set.
@@ -144,6 +204,9 @@ func (p *ArgParser) ParseArgs(args []string) error {
 	}
 	if help, _ := p.GetBool("help"); help {
 		p.generateHelp(0)
+	}
+	if err := p.parseCommand(); err != nil {
+		return err
 	}
 	if err := p.parseNargs(); err != nil {
 		return err
@@ -303,6 +366,10 @@ func (p *ArgParser) StringPosNVar(target *[]string, name, usage string, minN, ma
 		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
 
+	if p.command != nil {
+		panic(fmt.Sprintf("%s as CommandInit() has been defined", prefix))
+	}
+
 	if minN < 0 {
 		panic(fmt.Sprintf("%s with minN(%d) < 0", prefix, minN))
 	}
@@ -338,6 +405,10 @@ func (p *ArgParser) StringPosVar(target *string, name, usage string) {
 		panic(fmt.Sprintf("%s with empty name", prefix))
 	}
 
+	if p.command != nil {
+		panic(fmt.Sprintf("%s as Command() has already been defined", prefix))
+	}
+
 	if flag := p.Lookup(name); flag != nil {
 		panic(fmt.Sprintf("%s as already defined as flag", prefix))
 	}
@@ -359,8 +430,15 @@ func (p *ArgParser) StringPosVar(target *string, name, usage string) {
 }
 
 func (p *ArgParser) generateHelp(rc int) {
+	commandLen := 0
 	posArgs := ""
 	posLen := 0
+
+	for _, command := range p.commandArgs {
+		if len(command.name) > commandLen {
+			commandLen = len(command.name)
+		}
+	}
 
 	for _, pos := range p.pos {
 		posArgs = posArgs + " " + pos.name
@@ -392,7 +470,22 @@ func (p *ArgParser) generateHelp(rc int) {
 	}
 
 	out := ""
-	out += fmt.Sprintf("usage: %s [option]..%s\n\n", p.Name, posArgs)
+
+	if commandLen > 0 {
+		if p.commandOptions == nil {
+			out += fmt.Sprintf("usage: %s [option].. <command>\n\n", p.Name)
+		} else {
+			out += fmt.Sprintf("usage: %s [option].. <command> [command option]..\n\n", p.Name)
+		}
+		format := fmt.Sprintf("  %%-%ds   %%s\n", commandLen)
+		out += "commands:\n"
+		for _, command := range p.commandArgs {
+			out += fmt.Sprintf(format, command.name, command.description)
+		}
+		out += "\n"
+	} else {
+		out += fmt.Sprintf("usage: %s [option]..%s\n\n", p.Name, posArgs)
+	}
 
 	if posLen > 0 {
 		format := fmt.Sprintf("  %%-%ds   %%s\n", posLen)
@@ -432,6 +525,48 @@ func (p *ArgParser) parseAllowed() error {
 	return nil
 }
 
+func (p *ArgParser) parseCommand() error {
+	nargs := p.Args()
+
+	if len(nargs) > 0 && p.command == nil && len(p.pos) == 0 && p.posN == nil {
+		return fmt.Errorf("no positional arguments expected")
+	}
+
+	if p.command == nil {
+		// parseNargs() will process the arguments instead.
+		return nil
+	}
+
+	if len(nargs) == 0 {
+		return fmt.Errorf("missing command")
+	}
+
+	commandName := nargs[0]
+	found := false
+	for _, command := range p.commandArgs {
+		if command.name == commandName {
+			*p.command = command.impl
+			*p.commandName = commandName
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("invalid command: %s", commandName)
+	}
+	nargs = nargs[1:]
+
+	if len(nargs) == 0 {
+		return nil
+	}
+
+	if p.commandOptions == nil {
+		return fmt.Errorf("options not allowed for command: %s", commandName)
+	}
+
+	*p.commandOptions = nargs
+	return nil
+}
+
 func (p *ArgParser) parseMutuallyExclusive() error {
 	for _, names := range p.mutuallyExclusives {
 		changed := ""
@@ -449,6 +584,11 @@ func (p *ArgParser) parseMutuallyExclusive() error {
 }
 
 func (p *ArgParser) parseNargs() error {
+	if p.command != nil {
+		// parseComand() should already have processed all nargs.
+		return nil
+	}
+
 	nargs := p.Args()
 
 	if len(nargs) > 0 && len(p.pos) == 0 && p.posN == nil {
@@ -549,6 +689,9 @@ func (p *ArgParser) parseRequired() error {
 }
 
 func (p *ArgParser) requiredArgs() bool {
+	if p.command != nil {
+		return true
+	}
 	if len(p.pos) > 0 {
 		return true
 	}
