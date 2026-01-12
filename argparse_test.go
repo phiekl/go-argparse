@@ -647,6 +647,17 @@ func TestStringDenyEmpty_OK(t *testing.T) {
 	testNoError(t, err)
 }
 
+func TestStringDenyEmpty_OK_StringVarP_EmptyDefault(t *testing.T) {
+	p := NewArgParser("testprog")
+
+	var a string
+	p.StringVarP(&a, "a-test", "a", "", "usage-a")
+	p.StringDenyEmpty(&a, "a-test")
+	args := []string{}
+	err := p.ParseArgs(args)
+	testNoError(t, err)
+}
+
 func TestStringPosNVar_Die_AlreadyDefinedPosNVar(t *testing.T) {
 	defer func() {
 		msgx :=

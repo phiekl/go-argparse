@@ -321,7 +321,8 @@ func (p *ArgParser) StringAllowRegexp(target *string, name string, re string) {
 }
 
 // StringDenyEmpty marks the named string flag or positional argument as
-// required to have a non-empty value (i.e. not "").
+// required to have a non-empty value (i.e. not ""). Flags with a default
+// value of "" will not be denied as the flag has not been changed.
 // Enforced by ParseArgs.
 func (p *ArgParser) StringDenyEmpty(target *string, name string) {
 	prefix := fmt.Sprintf("StringDenyEmpty(%q): cannot be defined", name)
@@ -660,7 +661,7 @@ func (p *ArgParser) parseDenyEmpty() error {
 			if !found {
 				return fmt.Errorf("wtf")
 			}
-		} else if flag.Value.String() == "" {
+		} else if flag.Changed && flag.Value.String() == "" {
 			empty = append(empty, name)
 		}
 	}
