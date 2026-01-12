@@ -71,7 +71,8 @@ func (c *BaseCommand) captureResult(res any, errs []error) error {
 	c.result.Error = errs
 
 	if res == nil {
-		return fmt.Errorf("command result capture: unexpected nil")
+		// No result, all good, do not populate.
+		return nil
 	}
 
 	v := reflect.ValueOf(res)
@@ -121,7 +122,7 @@ type CommandImpl interface {
 
 	// Command executes the command and returns a result value and a slice of
 	// errors. The result is expected to be a pointer to a value implementing
-	// CommandResultData; a nil pointer indicates no result data.
+	// CommandResultData; nil or a nil pointer indicates no result data.
 	Command() (any, []error)
 }
 

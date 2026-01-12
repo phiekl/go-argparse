@@ -91,8 +91,8 @@ func TestBaseCommand_Run_SetsNameAndCapturesResultAndErrors(t *testing.T) {
 
 func TestBaseCommand_captureResult_ErrOnNilInterface(t *testing.T) {
 	var bc BaseCommand
-	if err := bc.captureResult(nil, nil); err == nil {
-		t.Fatalf("expected error, got nil")
+	if err := bc.captureResult(nil, nil); err != nil {
+		t.Fatalf("expected nil, got error")
 	}
 }
 

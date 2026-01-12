@@ -167,7 +167,7 @@ func (c *sumCmd) Command() (any, []error) {
 	for _, s := range c.n {
 		v, err := strconv.Atoi(s)
 		if err != nil {
-			return (*sumResult)(nil), []error{fmt.Errorf("invalid number %q: %w", s, err)}
+			return nil, []error{fmt.Errorf("invalid number %q: %w", s, err)}
 		}
 		total += v
 	}
